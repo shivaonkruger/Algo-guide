@@ -159,48 +159,95 @@ export default function Dashboard() {
     ? Math.round((roadmap.totalProgress.completed / roadmap.totalProgress.total) * 100) 
     : 0;
 
+  // --- BLOGS SECTION LOGIC ---
+  // Get onboarding choices from Clerk metadata
+  const preferredRole = user?.unsafeMetadata?.preferredRole || '';
+  const primaryLanguage = user?.unsafeMetadata?.primaryLanguage || '';
+  const familiarTopics = user?.unsafeMetadata?.familiarTopics || [];
+
+  // Flatten all resources from roadmapData
+  const allResources = [];
+  if (roadmapData) {
+    if (roadmapData.resources) {
+      if (roadmapData.resources.general_learning) allResources.push(...roadmapData.resources.general_learning);
+      if (roadmapData.resources.company_specific) allResources.push(...roadmapData.resources.company_specific);
+      if (roadmapData.resources.technical_skills) allResources.push(...roadmapData.resources.technical_skills);
+    }
+    if (roadmapData.general_learning) allResources.push(...roadmapData.general_learning);
+    if (roadmapData.company_specific) allResources.push(...roadmapData.company_specific);
+    if (roadmapData.technical_skills) allResources.push(...roadmapData.technical_skills);
+  }
+
+  // Filter blogs relevant to onboarding choices
+  const relevantBlogs = allResources.filter(resource => {
+    const isBlog = resource.type === 'blog' || (resource.tags && resource.tags.includes('blog'));
+    if (!isBlog) return false;
+    // Match role, language, or topic
+    const matchesRole = preferredRole && resource.tags?.some(tag => tag.toLowerCase().includes(preferredRole.toLowerCase()));
+    const matchesLanguage = primaryLanguage && resource.tags?.some(tag => tag.toLowerCase().includes(primaryLanguage.toLowerCase()));
+    const matchesTopic = familiarTopics && familiarTopics.some(topic => resource.tags?.some(tag => tag.toLowerCase().includes(topic.toLowerCase())));
+    return matchesRole || matchesLanguage || matchesTopic;
+  });
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
-      {/* Left Sidebar */}
-      <div className={`w-20 bg-gray-800 fixed left-0 top-0 bottom-0 transition-all duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} z-40 flex flex-col items-center py-6 border-r border-gray-700`}>
-        <div className="mb-8 cursor-pointer" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          <div className="bg-orange-500 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl">
-            AG
-          </div>
+      {/* Left Sidebar - always visible */}
+      <div className="w-20 bg-gray-800 fixed left-0 top-0 bottom-0 z-40 flex flex-col items-center py-6 border-r border-gray-700">
+        <div className="mb-8">
+          <div className="bg-orange-500 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl">AG</div>
         </div>
         <nav className="flex-1 space-y-4">
           <NavItem icon="📚" label="Course" />
           <NavItem icon="📝" label="Blogs" />
-          <NavItem icon="🎤" label="Interview" active />
-          <NavItem icon="📊" label="Dashboard" />
+          <a href="/interview-call" style={{ textDecoration: 'none' }}>
+            <NavItem icon="🎤" label="Interview" />
+          </a>
+          <NavItem icon="📊" label="Dashboard" active />
         </nav>
         <div className="space-y-4">
-          <button className="text-gray-400 hover:text-white transition">
-            <span className="text-2xl">🌙</span>
-          </button>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
+          <SignedIn><UserButton /></SignedIn>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
+      {/* Main Content - add left margin to avoid sidebar overlap */}
+      <div className="flex-1 flex" style={{ marginLeft: '5rem' }}>
         <div className="flex-1 p-8 pt-6 overflow-auto">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">Dashboard</h1>
             <div className="flex gap-3">
-              <button className="bg-gray-800 px-4 py-2 rounded-lg hover:bg-gray-700 transition">
-                🔍
-              </button>
-              <select className="bg-gray-800 px-4 py-2 rounded-lg hover:bg-gray-700 transition">
-                <option>Difficulty</option>
-              </select>
-              <button className="bg-orange-500 px-4 py-2 rounded-lg hover:bg-orange-600 transition">
-                &lt;&gt; Pick Random
-              </button>
+              <button className="bg-gray-800 px-4 py-2 rounded-lg hover:bg-gray-700 transition">🔍</button>
+              <select className="bg-gray-800 px-4 py-2 rounded-lg hover:bg-gray-700 transition"><option>Difficulty</option></select>
+              <button className="bg-orange-500 px-4 py-2 rounded-lg hover:bg-orange-600 transition">&lt;&gt; Pick Random</button>
             </div>
+          </div>
+
+          {/* --- BLOGS SECTION --- */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4 text-orange-400">Relevant Blogs For You</h2>
+            {relevantBlogs.length === 0 ? (
+              <div className="text-gray-400">No relevant blogs found for your preferences.</div>
+            ) : (
+              <div className="space-y-4">
+                {relevantBlogs.map((blog, idx) => (
+                  <a
+                    key={idx}
+                    href={blog.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-4 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 transition"
+                  >
+                    <h3 className="font-semibold text-lg mb-1">{blog.title}</h3>
+                    <p className="text-sm text-gray-400 mb-2">{blog.description}</p>
+                    <div className="flex gap-2 mt-2">
+                      {blog.tags?.map((tag, tagIdx) => (
+                        <span key={tagIdx} className="px-2 py-1 bg-gray-600 rounded text-xs">{tag}</span>
+                      ))}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Progress Summary */}
@@ -208,14 +255,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <p className="text-gray-400 mb-2">Total Progress</p>
-                <p className="text-2xl font-bold mb-3">
-                  {roadmap.totalProgress.completed} / {roadmap.totalProgress.total}
-                </p>
+                <p className="text-2xl font-bold mb-3">{roadmap.totalProgress.completed} / {roadmap.totalProgress.total}</p>
                 <div className="relative w-full h-4 bg-gray-700 rounded-full">
-                  <div 
-                    className="absolute top-0 left-0 h-4 bg-orange-500 rounded-full transition-all"
-                    style={{ width: `${progressPercentage}%` }}
-                  ></div>
+                  <div className="absolute top-0 left-0 h-4 bg-orange-500 rounded-full transition-all" style={{ width: `${progressPercentage}%` }}></div>
                 </div>
                 <p className="text-sm text-gray-400 mt-2">{progressPercentage}%</p>
               </div>
@@ -227,24 +269,16 @@ export default function Dashboard() {
 
           {/* Tabs */}
           <div className="mb-6 flex gap-1 border-b border-gray-700">
-            <button className="px-4 py-2 border-b-2 border-orange-500 text-orange-500 font-semibold">
-              All Problems
-            </button>
-            <button className="px-4 py-2 text-gray-400 hover:text-white transition">
-              Revision
-            </button>
+            <button className="px-4 py-2 border-b-2 border-orange-500 text-orange-500 font-semibold">All Problems</button>
+            <button className="px-4 py-2 text-gray-400 hover:text-white transition">Revision</button>
           </div>
 
           {/* Debug Info (remove in production) */}
           {roadmapData && (
             <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
               <details>
-                <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
-                  Debug: API Response Data Structure
-                </summary>
-                <pre className="mt-2 text-xs text-gray-300 overflow-auto max-h-40">
-                  {JSON.stringify(roadmapData, null, 2)}
-                </pre>
+                <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">Debug: API Response Data Structure</summary>
+                <pre className="mt-2 text-xs text-gray-300 overflow-auto max-h-40">{JSON.stringify(roadmapData, null, 2)}</pre>
               </details>
             </div>
           )}
@@ -257,35 +291,25 @@ export default function Dashboard() {
             </div>
           ) : roadmap.steps.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">No roadmap data available. Please complete the onboarding process.</p>
-              {!roadmapData && (
-                <p className="text-sm text-gray-500 mt-2">No API response received.</p>
-              )}
+                <p className="text-gray-400">Your personalized roadmap is being prepared.</p>
+                <p className="text-sm text-gray-500 mt-2">If you've just chosen your preferences, it may take a moment for your roadmap to be generated. Please refresh the page or check back soon!</p>
+                <button className="mt-6 px-6 py-2 bg-orange-500 rounded-lg text-white font-semibold hover:bg-orange-600 transition" onClick={() => window.location.reload()}>Refresh Roadmap</button>
+                {!roadmapData && (<p className="text-xs text-gray-600 mt-4">No API response received. If this persists, please contact support.</p>)}
             </div>
           ) : (
             <div className="space-y-4">
               {roadmap.steps.map((step, index) => (
                 <div key={index} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                  <div 
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-750 transition"
-                    onClick={() => toggleSection(index)}
-                  >
+                  <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-750 transition" onClick={() => toggleSection(index)}>
                     <div className="flex items-center gap-4 flex-1">
-                      <button className="text-orange-500 font-bold">
-                        {expandedSections[index] ? '▼' : '▶'}
-                      </button>
+                      <button className="text-orange-500 font-bold">{expandedSections[index] ? '▼' : '▶'}</button>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">{step.title}</h3>
                         <div className="flex items-center gap-4 mt-2">
                           <div className="flex-1 max-w-xs h-2 bg-gray-700 rounded-full">
-                            <div 
-                              className="h-2 bg-orange-500 rounded-full"
-                              style={{ width: `${step.total > 0 ? (step.completed / step.total) * 100 : 0}%` }}
-                            ></div>
+                            <div className="h-2 bg-orange-500 rounded-full" style={{ width: `${step.total > 0 ? (step.completed / step.total) * 100 : 0}%` }}></div>
                           </div>
-                          <span className="text-sm text-gray-400">
-                            {step.completed} / {step.total}
-                          </span>
+                          <span className="text-sm text-gray-400">{step.completed} / {step.total}</span>
                         </div>
                       </div>
                     </div>
@@ -293,21 +317,11 @@ export default function Dashboard() {
                   {expandedSections[index] && (
                     <div className="border-t border-gray-700 p-4 space-y-3">
                       {step.resources.map((resource, idx) => (
-                        <a
-                          key={idx}
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition"
-                        >
+                        <a key={idx} href={resource.url} target="_blank" rel="noopener noreferrer" className="block p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition">
                           <h4 className="font-medium">{resource.title}</h4>
                           <p className="text-sm text-gray-400 mt-1">{resource.description}</p>
                           <div className="flex gap-2 mt-2">
-                            {resource.tags?.map((tag, tagIdx) => (
-                              <span key={tagIdx} className="px-2 py-1 bg-gray-600 rounded text-xs">
-                                {tag}
-                              </span>
-                            ))}
+                            {resource.tags?.map((tag, tagIdx) => (<span key={tagIdx} className="px-2 py-1 bg-gray-600 rounded text-xs">{tag}</span>))}
                           </div>
                         </a>
                       ))}
@@ -326,11 +340,7 @@ export default function Dashboard() {
             <SidebarCard number="02" title="DATA STRUCTURES" icon="🎯" />
             <SidebarCard number="03" title="ALGORITHMS" icon="🎯" />
             <SidebarCard number="04" title="SYSTEM DESIGN" icon="🎯" />
-            <div className="mt-8">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition">
-                Enroll Now to get started
-              </button>
-            </div>
+            <div className="mt-8"><button className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold transition">Enroll Now to get started</button></div>
           </div>
         </div>
       </div>

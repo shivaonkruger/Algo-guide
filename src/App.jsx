@@ -5,6 +5,8 @@ import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Onboarding from './pages/Onboarding';
 import SignInPage from './pages/SignIn';
+import { auth } from './config/firebase'; // Import Firebase auth for monitoring
+import InterviewCall from './pages/InterviewCall';
 
 function ProtectedRoute({ children }) {
   const { isSignedIn, isLoaded } = useUser();
@@ -72,17 +74,14 @@ export default function App() {
     let unsubscribe;
     (async () => {
       try {
-        const authModule = await import(/* @vite-ignore */ 'firebase/auth').catch(() => null);
-        if (!authModule) return;
-        const { getAuth, onAuthStateChanged } = authModule;
-        const auth = getAuth();
+        const { onAuthStateChanged } = await import('firebase/auth');
         unsubscribe = onAuthStateChanged(auth, (fbUser) => {
           if (fbUser?.uid) {
             console.log('Firebase UID:', fbUser.uid);
           }
         });
-      } catch {
-        // Firebase not configured/installed; skip logging
+      } catch (error) {
+        console.log('Firebase auth not configured:', error.message);
       }
     })();
     return () => {
@@ -121,6 +120,15 @@ export default function App() {
               <OnboardingOnlyGuard>
                 <Onboarding />
               </OnboardingOnlyGuard>
+            </ProtectedRoute>
+          }
+        />
+        {/* Interview Voice Agent Route */}
+        <Route
+          path="/interview-call"
+          element={
+            <ProtectedRoute>
+              <InterviewCall />
             </ProtectedRoute>
           }
         />

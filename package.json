@@ -10,7 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.53.4",
+    "@clerk/clerk-react": "^5.54.0",
+    "@vapi-ai/web": "^2.5.0",
     "firebase": "^12.5.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
